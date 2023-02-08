@@ -1,0 +1,11 @@
+package com.example.demo.common.aspect.annotion;
+
+import java.lang.annotation.*;
+
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface DataAuthority {
+
+
+}
