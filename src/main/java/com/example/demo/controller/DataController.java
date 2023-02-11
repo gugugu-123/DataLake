@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
 import java.io.*;
 import java.util.List;
 
@@ -37,7 +38,7 @@ public class DataController {
 
     @ApiOperation("数据下载")
     @PostMapping("download")
-    public void download(@Validated DetailInformationVO detailInformationVO, String sql, HttpServletResponse response) throws IOException, SparkServerException, TableNotExistException {
+    public void download(@Validated @RequestBody DetailInformationVO detailInformationVO, String sql, HttpServletResponse response) throws IOException, SparkServerException, TableNotExistException {
         dataService.download(sql, response, detailInformationVO);
     }
 
