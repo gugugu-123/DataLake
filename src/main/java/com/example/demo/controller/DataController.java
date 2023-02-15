@@ -1,9 +1,9 @@
 package com.example.demo.controller;
 
-
 import com.example.demo.exception.SqlException;
 import com.example.demo.exception.SparkServerException;
 import com.example.demo.exception.TableNotExistException;
+import com.example.demo.model.SqlModel;
 import com.example.demo.model.SqlResultModel;
 import com.example.demo.service.DataService;
 import com.example.demo.vo.DetailInformationVO;
@@ -13,6 +13,10 @@ import com.example.demo.vo.SqlInformationVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,6 +24,11 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.*;
+import java.net.URLEncoder;
+import java.nio.file.Path;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 @Api(tags = "数据管理")
@@ -32,23 +41,27 @@ public class DataController {
 
     @ApiOperation("文件上传")
     @PostMapping("uploadFile")
-    public Result<Void> uploadFile(@RequestPart MultipartFile file, FileUploadVO fileUploadVO) throws IOException, SparkServerException {
+    public Result<String> uploadFile(@RequestPart MultipartFile file, @Validated FileUploadVO fileUploadVO) throws IOException, SparkServerException {
+        if (file == null) {
+            return Result.error("请上传文件");
+        }
         return dataService.upload(file, fileUploadVO);
     }
 
     @ApiOperation("数据下载")
     @PostMapping("download")
-    public void download(@Validated @RequestBody DetailInformationVO detailInformationVO, String sql, HttpServletResponse response) throws IOException, SparkServerException, TableNotExistException {
-        dataService.download(sql, response, detailInformationVO);
+    public void download(@Validated @RequestBody DetailInformationVO detailInformationVO, HttpServletResponse response) throws IOException, SparkServerException, TableNotExistException, ParseException {
+        dataService.download(detailInformationVO.getSql(), response, detailInformationVO);
     }
 
     @ApiOperation("条件查询")
     @GetMapping("selectCondition")
-    public Result<List<SqlResultModel>> selectCondition(@Validated DetailInformationVO detailInformationVO) throws SqlException, SparkServerException {
+    public Result<List<SqlResultModel>> selectCondition(@Validated DetailInformationVO detailInformationVO) throws SqlException, SparkServerException, ParseException {
         String selectSql = dataService.createSelectSql(detailInformationVO);
         SqlInformationVO sqlInformationVO = new SqlInformationVO();
         sqlInformationVO.setPage(detailInformationVO.getPage());
         sqlInformationVO.setPageSize(detailInformationVO.getPageSize());
+        sqlInformationVO.setSqls(new SqlModel(selectSql));
         return dataService.getSqlResult(sqlInformationVO);
     }
 

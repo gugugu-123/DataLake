@@ -9,24 +9,27 @@ import com.example.demo.vo.DetailInformationVO;
 import com.example.demo.vo.FileUploadVO;
 import com.example.demo.vo.Result;
 import com.example.demo.vo.SqlInformationVO;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.List;
 
 public interface DataService {
     void generateDataMap(FileInfo fileMap);
 
-    String createSelectSql(DetailInformationVO detailInformationVO);
+    String createSelectSql(DetailInformationVO detailInformationVO) throws ParseException;
 
     Result<List<SqlResultModel>> getSqlResult(SqlInformationVO sqlInformationVO) throws SqlException, SparkServerException;
 
     Result checkSql(String selectSql);
 
-    Result<Void> upload(MultipartFile uploadFile, FileUploadVO fileUploadVO) throws SparkServerException, IOException;
+    Result<String> upload(MultipartFile uploadFile, FileUploadVO fileUploadVO) throws SparkServerException, IOException;
 
     Result<List<String>> getTables();
 
-    void download(String sql, HttpServletResponse response, DetailInformationVO detailInformationVO) throws SparkServerException, IOException, TableNotExistException;
+    void download(String sql, HttpServletResponse response, DetailInformationVO detailInformationVO) throws SparkServerException, IOException, TableNotExistException, ParseException;
 }

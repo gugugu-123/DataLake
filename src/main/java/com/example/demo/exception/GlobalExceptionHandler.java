@@ -18,7 +18,7 @@ import java.util.List;
  * @Date 2019
  */
 @Slf4j
-//@RestControllerAdvice
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
 	@ExceptionHandler(SqlException.class)

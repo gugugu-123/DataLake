@@ -14,6 +14,7 @@ import javax.validation.constraints.NotBlank;
 public class FileUploadVO {
 
     @ApiModelProperty(value = "上传模式,(append、overwrite、error、errorifexists、ignore)", required = true)
+    @Model(message = "mode异常", target = ModelEnum.class)
     private String mode;
 
     @ApiModelProperty(value = "最终路径", required = true)

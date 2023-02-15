@@ -1,9 +1,9 @@
-package com.example.demo.conversion.Impl;
+package com.example.demo.common.conversion.Impl;
 
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import com.example.demo.conversion.DataFormatConversion;
+import com.example.demo.common.conversion.DataFormatConversion;
 
 import java.util.ArrayList;
 import java.util.List;

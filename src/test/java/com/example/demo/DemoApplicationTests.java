@@ -1,6 +1,7 @@
 package com.example.demo;
 
 
+import com.example.demo.common.constant.RegularExpressionConstant;
 import com.example.demo.exception.SparkServerException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Slf4j
 @SpringBootTest
@@ -90,15 +92,7 @@ class DemoApplicationTests {
 
     @Test
     public void write2() throws Exception {
-        String str = "select * from xxx where 1 = 1";
-        log.info("select * from xxx where 1 = 1".substring(str.indexOf("where") + 6));
-        List<String> list = new ArrayList<>();
-        list.add("1");
-        list.add("2");
-        list.add("3");
-        list.add("4");
-        List<String> list1 = list.subList(2, 3);
-        System.out.println(list1);
+        System.out.println(Pattern.compile("").matcher(RegularExpressionConstant.TIME_1).matches());
 
 //        File localPath = new File("D:\\test.json");
 //        String hdfsPath = "hdfs://localhost:9000/user/tmp/test.json";

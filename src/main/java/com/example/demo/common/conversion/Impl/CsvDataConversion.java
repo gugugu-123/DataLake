@@ -1,9 +1,9 @@
-package com.example.demo.conversion.Impl;
+package com.example.demo.common.conversion.Impl;
 
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
-import com.example.demo.conversion.DataFormatConversion;
+import com.example.demo.common.conversion.DataFormatConversion;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +24,7 @@ public class CsvDataConversion implements DataFormatConversion {
             JSONObject value = JSONUtil.parseObj(valueObject.get("value"));
             JSONObject jsonObject = new JSONObject();
             for (Map.Entry<String, Object> headEntity : valueHead) {
-                jsonObject.put((String) headEntity.getValue(), value.get(headEntity.getKey()));
+                jsonObject.put(headEntity.getValue().toString(), value.get(headEntity.getKey()));
             }
             formatResultTable.add(jsonObject);
         }
@@ -62,7 +62,7 @@ public class CsvDataConversion implements DataFormatConversion {
             JSONObject valueObject = JSONUtil.parseObj(valueJson);
             JSONObject value = JSONUtil.parseObj(valueObject.get("value"));
             for (Map.Entry<String, Object> objectEntry : value) {
-                column.add((String) objectEntry.getValue());
+                column.add(objectEntry.getValue().toString());
             }
             break;
         }

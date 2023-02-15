@@ -1,10 +1,10 @@
 package com.example.demo.vo;
 
+import com.example.demo.common.validate.TimeCheck;
+
 import io.swagger.annotations.ApiModelProperty;
 import io.swagger.annotations.ApiOperation;
 import lombok.Data;
-
-import java.util.Date;
 
 @Data
 @ApiOperation(value = "条件查询VO")
@@ -17,10 +17,12 @@ public class DetailInformationVO {
     private String text;
 
     @ApiModelProperty("起始时间")
-    private Date startTime;
+    @TimeCheck
+    private String startTime;
 
     @ApiModelProperty("结束时间")
-    private Date endTime;
+    @TimeCheck
+    private String endTime;
 
     @ApiModelProperty("source")
     private String source;
@@ -31,7 +33,10 @@ public class DetailInformationVO {
     @ApiModelProperty("公司名")
     private String companyName;
 
-    @ApiModelProperty(value = "表名,自定义sql时不需要填写", required = true)
+    @ApiModelProperty(value = "sql,条件查询时为空", required = false)
+    private String sql;
+
+    @ApiModelProperty(value = "表名,自定义sql时为空", required = false)
     private String table;
 
     @ApiModelProperty(value = "当前页", required = true)

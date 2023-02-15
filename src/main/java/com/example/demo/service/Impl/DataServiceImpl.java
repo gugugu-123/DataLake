@@ -5,12 +5,18 @@ import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONUtil;
 import com.example.demo.common.commonEnum.FileTypeEnum;
-import com.example.demo.conversion.DataFormatConversion;
-import com.example.demo.conversion.Impl.CsvDataConversion;
+import com.example.demo.common.commonEnum.SqlTypeEnum;
+import com.example.demo.common.conversion.DataFormatConversion;
+import com.example.demo.common.conversion.Impl.CsvDataConversion;
 import com.example.demo.common.commonEnum.ModelEnum;
 import com.example.demo.common.commonEnum.ResponseEnum;
-import com.example.demo.conversion.Impl.JsonDataConversion;
-import com.example.demo.conversion.Impl.PictureDataConversion;
+import com.example.demo.common.conversion.Impl.JsonDataConversion;
+import com.example.demo.common.conversion.Impl.PictureDataConversion;
+import com.example.demo.common.processor.Impl.DeleteSqlProcessor;
+import com.example.demo.common.processor.Impl.InsertSqlProcessor;
+import com.example.demo.common.processor.Impl.SelectSqlProcessor;
+import com.example.demo.common.processor.Impl.UpdateSqlProcessor;
+import com.example.demo.common.processor.SqlProcessor;
 import com.example.demo.entity.FileInfo;
 import com.example.demo.entity.Table;
 import com.example.demo.exception.SparkServerException;
@@ -19,6 +25,7 @@ import com.example.demo.exception.TableNotExistException;
 import com.example.demo.model.FileDownloadVO;
 import com.example.demo.model.SqlModel;
 import com.example.demo.model.SqlResultModel;
+import com.example.demo.model.TableModel;
 import com.example.demo.service.DataService;
 import com.example.demo.util.HttpUtils;
 import com.example.demo.vo.DetailInformationVO;
@@ -26,13 +33,13 @@ import com.example.demo.vo.FileUploadVO;
 import com.example.demo.vo.Result;
 import com.example.demo.vo.SqlInformationVO;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.util.Progressable;
-import org.apache.hadoop.util.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -46,8 +53,8 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.URI;
+import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executor;
@@ -78,7 +85,7 @@ public class DataServiceImpl implements DataService {
     }
 
     @Override
-    public String createSelectSql(DetailInformationVO detailInformationVO) {
+    public String createSelectSql(DetailInformationVO detailInformationVO) throws ParseException {
         StringBuffer originSql = new StringBuffer("select * from " + detailInformationVO.getTable() + " where 1 = 1");
         String id = detailInformationVO.getId();
         Table table = mongoTemplate.findOne(Query.query(Criteria.where("name").is(detailInformationVO.getTable())), Table.class);
@@ -90,18 +97,20 @@ public class DataServiceImpl implements DataService {
             originSql.append(" and id = ");
             originSql.append(id);
         }
-        Date startTime = detailInformationVO.getStartTime();
-        Date endTime = detailInformationVO.getEndTime();
-        if (startTime != null && columns.contains("timestamp")) {
-            long start = startTime.getTime();
-            originSql.append(" and timestamp >= ");
-            originSql.append(start);
-        }
-        if (endTime != null && columns.contains("timestamp")) {
-            long end = endTime.getTime();
-            originSql.append(" and timestamp <= ");
-            originSql.append(end);
-        }
+
+//        LocalDateTime startTime = detailInformationVO.getStartTim();
+//        LocalDateTime endTime = detailInformationVO.getEndTime();
+//
+//        if (startTime != null && columns.contains("timestamp")) {
+//            long start = startTime.toInstant(ZoneOffset.of("+8")).toEpochMilli();
+//            originSql.append(" and timestamp >= ");
+//            originSql.append(start);
+//        }
+//        if (endTime != null && columns.contains("timestamp")) {
+//            long end = endTime.toInstant(ZoneOffset.of("+8")).toEpochMilli();
+//            originSql.append(" and timestamp <= ");
+//            originSql.append(end);
+//        }
         String symbols = detailInformationVO.getSymbols();
         if (StrUtil.isNotBlank(symbols) && columns.contains("symbols")) {
             addLikeCondition("symbols", symbols, originSql);
@@ -118,11 +127,18 @@ public class DataServiceImpl implements DataService {
     }
 
     @Override
-    public Result getSqlResult(SqlInformationVO sqlInformationVO) throws SqlException, SparkServerException {
+    public Result<List<SqlResultModel>> getSqlResult(SqlInformationVO sqlInformationVO) throws SqlException, SparkServerException {
         Result checkSqlResult = checkSql(sqlInformationVO.getSqls().getSqlQueries());
         if (checkSqlResult.isError()) {
             return checkSqlResult;
         }
+        if (sqlInformationVO.getSqls().getSqlQueries().startsWith("show")) {
+            SqlResultModel showSqlResult = showSqlExecute(sqlInformationVO.getSqls().getSqlQueries());
+            List<SqlResultModel> list = new ArrayList<>();
+            list.add(showSqlResult);
+            return Result.OK(list);
+        }
+
         String result = HttpUtils.httpPost(url + "/spark/sql", sqlInformationVO.getSqls());
         if (StrUtil.isBlankIfStr(result)) {
             throw new SqlException();
@@ -130,9 +146,19 @@ public class DataServiceImpl implements DataService {
         List<SqlResultModel> sqlResultModels = JSONUtil.toList(result, SqlResultModel.class);
         for (SqlResultModel sqlResultModel : sqlResultModels) {
             DataFormatConversion conversion = getDataConversion(getTables(sqlResultModel.getSqlText()), sqlResultModel);
-            SqlResultModel formatResult = formatData(sqlResultModel, conversion, sqlInformationVO.getPage(), sqlInformationVO.getPageSize());
+            formatData(sqlResultModel, conversion, sqlInformationVO.getPage(), sqlInformationVO.getPageSize());
         }
         return Result.OK(sqlResultModels);
+    }
+
+    private SqlResultModel showSqlExecute(String sql) {
+        List<Table> tableList = mongoTemplate.findAll(Table.class);
+        List<TableModel> tableModelList = tableList.stream().map(item -> new TableModel(item.getName())).collect(Collectors.toList());
+        SqlResultModel sqlResultModel = new SqlResultModel();
+        sqlResultModel.setSqlText("sql");
+        sqlResultModel.setTotal(tableList.size());
+        sqlResultModel.setResultTable(JSONUtil.toJsonStr(tableModelList));
+        return sqlResultModel;
     }
 
     @Override
@@ -154,7 +180,7 @@ public class DataServiceImpl implements DataService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<Void> upload(MultipartFile uploadFile, FileUploadVO fileUploadVO) throws SparkServerException, IOException {
+    public Result<String> upload(MultipartFile uploadFile, FileUploadVO fileUploadVO) throws SparkServerException, IOException {
         String md5Hex = DigestUtil.md5Hex(uploadFile.getInputStream());
         boolean fileIsExist = this.checkFileIsExist(md5Hex, fileUploadVO.getDstDeltaTablePath());
         // TODO 对于append模式下，dataMap处理
@@ -178,13 +204,14 @@ public class DataServiceImpl implements DataService {
         uploadTempFile(uploadFile.getInputStream(), pathTemp, uploadFile.getOriginalFilename());
         fileUploadVO.setSrcFilePath(pathTemp);
         HttpUtils.httpPost(url + "/upload", fileUploadVO);
+        String table = "";
         if (ModelEnum.Append.getMode().equals(fileUploadVO.getMode()) && tableIsExist(fileUploadVO.getDstDeltaTablePath())) {
 
         } else {
-            generateTableMetadata(fileUploadVO.getDstDeltaTablePath(), fileMap.getSuffix());
+            table = generateTableMetadata(fileUploadVO.getDstDeltaTablePath(), fileMap.getSuffix());
         }
 
-        return Result.OK();
+        return Result.OK(table);
     }
 
     @Override
@@ -195,10 +222,12 @@ public class DataServiceImpl implements DataService {
     }
 
     @Override
-    public void download(String sql, HttpServletResponse response, DetailInformationVO detailInformationVO) throws SparkServerException, IOException, TableNotExistException {
-        Result checkSqlResult = checkSql(sql);
-        if (checkSqlResult.isError()) {
-            throw new TableNotExistException(checkSqlResult.getMessage());
+    public void download(String sql, HttpServletResponse response, DetailInformationVO detailInformationVO) throws SparkServerException, IOException, TableNotExistException, ParseException {
+        if (StrUtil.isNotBlank(sql)) {
+            Result checkSqlResult = checkSql(sql);
+            if (checkSqlResult.isError()) {
+                throw new TableNotExistException(checkSqlResult.getMessage());
+            }
         }
         String tableName = detailInformationVO.getTable();
         if (StrUtil.isBlankIfStr(tableName)) {
@@ -214,7 +243,8 @@ public class DataServiceImpl implements DataService {
         if (FileTypeEnum.JPG.getType().equals(table.getFileType()) || FileTypeEnum.PNG.getType().equals(table.getFileType())) {
             FileDownloadVO fileDownloadVO = new FileDownloadVO();
             fileDownloadVO.setDeltaTablePath(table.getPath());
-            fileDownloadVO.setWhereClause(sql.substring(sql.indexOf("where") + 6).trim());
+            String whereClause = sql.indexOf("where") == -1 ? "" : sql.substring(sql.indexOf("where") + 6);
+            fileDownloadVO.setWhereClause(whereClause);
             inputStream = HttpUtils.httpPostStream(url + "/download", fileDownloadVO);
         } else {
             SqlModel sqlModel = new SqlModel();
@@ -227,6 +257,8 @@ public class DataServiceImpl implements DataService {
                 inputStream = new ByteArrayInputStream(originFormat.getBytes());
             }
         }
+        response.setHeader("Access-Control-Expose-Headers", "fileName");
+        response.setHeader("fileName", UUID.randomUUID().toString().substring(1, 7) + table.getFileType());
         ServletOutputStream outputStream = response.getOutputStream();
         byte[] bytes = new byte[1024];
         int length = - 1;
@@ -235,11 +267,8 @@ public class DataServiceImpl implements DataService {
                 outputStream.write(bytes, 0 , length);
             }
         } finally {
-            inputStream.close();
             outputStream.flush();
-            outputStream.close();
         }
-        //return Result.OK();
     }
 
     private List<String> checkTableExist(List<String> tableList) {
@@ -271,12 +300,11 @@ public class DataServiceImpl implements DataService {
     private List<String> getTables(String sqls) {
         List<String> tableList = new ArrayList<>();
         for (String sql : sqls.split(",")) {
-            String[] s = sql.split(" ");
-            for (int i = 0; i < s.length; i++) {
-                if ("from".equals(s[i].trim()) || "join".equals(s[i].trim())) {
-                    tableList.add(s[i + 1].trim());
-                }
+            SqlProcessor sqlProcessor = getSqlProcessor(sql);
+            if (sqlProcessor == null) {
+                continue;
             }
+            tableList.addAll(sqlProcessor.getTable(sql));
         }
         return tableList;
     }
@@ -331,7 +359,7 @@ public class DataServiceImpl implements DataService {
         return table != null;
     }
 
-    private void generateTableMetadata(String path, String suffix) throws SparkServerException {
+    private String generateTableMetadata(String path, String suffix) throws SparkServerException {
         Table tableMetadata = new Table();
         tableMetadata.setPath(path);
         tableMetadata.setName(this.table + ".`" + path + "`");
@@ -347,6 +375,7 @@ public class DataServiceImpl implements DataService {
         List<String> columns = conversion.getColumn(sqlResultModels.get(0).getResultTable());
         tableMetadata.setColumns(columns);
         mongoTemplate.save(tableMetadata);
+        return tableMetadata.getName();
     }
 
     private SqlResultModel formatData(SqlResultModel sqlResultModel, DataFormatConversion dataConversion, Integer page, Integer pageSize) {
@@ -388,4 +417,18 @@ public class DataServiceImpl implements DataService {
         return conversion;
     }
 
+    private SqlProcessor getSqlProcessor(String sql) {
+        SqlProcessor processor = null;
+        sql = sql.toLowerCase();
+        if (sql.indexOf(SqlTypeEnum.SELECT.getType()) != -1) {
+            return new SelectSqlProcessor();
+        } else if (sql.indexOf(SqlTypeEnum.UPDATE.getType()) != -1) {
+            return new UpdateSqlProcessor();
+        } else if (sql.indexOf(SqlTypeEnum.DELETE.getType()) != -1) {
+            return new DeleteSqlProcessor();
+        } else if (sql.indexOf(SqlTypeEnum.INSERT.getType()) != -1) {
+            return new InsertSqlProcessor();
+        }
+        return processor;
+    }
 }

@@ -1,4 +1,4 @@
-package com.example.demo.conversion;
+package com.example.demo.common.conversion;
 
 import java.util.List;
 
