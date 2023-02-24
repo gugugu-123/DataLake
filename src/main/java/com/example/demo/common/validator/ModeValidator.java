@@ -1,6 +1,4 @@
-package com.example.demo.config;
-
-import com.example.demo.common.validate.Model;
+package com.example.demo.common.validator;
 
 import javax.validation.ConstraintValidator;
 import javax.validation.ConstraintValidatorContext;

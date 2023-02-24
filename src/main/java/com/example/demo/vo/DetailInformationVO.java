@@ -1,6 +1,6 @@
 package com.example.demo.vo;
 
-import com.example.demo.common.validate.TimeCheck;
+import com.example.demo.common.validator.TimeCheck;
 
 import io.swagger.annotations.ApiModelProperty;
 import io.swagger.annotations.ApiOperation;

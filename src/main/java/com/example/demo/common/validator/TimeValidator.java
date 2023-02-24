@@ -1,13 +1,11 @@
-package com.example.demo.config;
+package com.example.demo.common.validator;
 
 import cn.hutool.core.util.StrUtil;
-import com.example.demo.common.validate.TimeCheck;
 
 import javax.validation.ConstraintValidator;
 import javax.validation.ConstraintValidatorContext;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAccessor;
 
 public class TimeValidator implements ConstraintValidator<TimeCheck, String> {
 
@@ -19,7 +17,6 @@ public class TimeValidator implements ConstraintValidator<TimeCheck, String> {
         boolean flag = true;
         try {
             LocalDateTime time = LocalDateTime.parse(value, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            System.out.println(time.toString());
         } catch (Exception e) {
             e.printStackTrace();
             flag = false;

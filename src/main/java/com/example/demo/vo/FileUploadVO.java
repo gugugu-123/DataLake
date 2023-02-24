@@ -1,12 +1,11 @@
 package com.example.demo.vo;
 
 import com.example.demo.common.commonEnum.ModelEnum;
-import com.example.demo.common.validate.Model;
+import com.example.demo.common.validator.Model;
 import io.swagger.annotations.ApiModelProperty;
 import io.swagger.annotations.ApiOperation;
 import lombok.Data;
 
-import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 
 @Data

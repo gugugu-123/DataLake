@@ -20,7 +20,7 @@ public class FileSystemUpload {
     public static void main(String[] args) throws IOException {
 
         File localPath = new File("D:\\test.json");
-        String hdfsPath = "hdfs://localhost:9000/user/tmp/hello.txt";
+        String hdfsPath = "hdfs://114.132.185.184:9000/user/tmp/hello.txt";
         InputStream in = new BufferedInputStream(new FileInputStream(localPath));// 获取输入流对象
         Configuration config = new Configuration();
         FileSystem fs = FileSystem.get(URI.create(hdfsPath), config);

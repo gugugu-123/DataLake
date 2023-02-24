@@ -183,8 +183,8 @@ public class DataServiceImpl implements DataService {
     public Result<String> upload(MultipartFile uploadFile, FileUploadVO fileUploadVO) throws SparkServerException, IOException {
         String md5Hex = DigestUtil.md5Hex(uploadFile.getInputStream());
         boolean fileIsExist = this.checkFileIsExist(md5Hex, fileUploadVO.getDstDeltaTablePath());
-        // TODO 对于append模式下，dataMap处理
-        if (fileIsExist && !ModelEnum.OVERWRITE.getMode().equals(fileUploadVO.getMode()) && !ModelEnum.Append.getMode().equals(fileUploadVO.getMode())) {
+
+        if (fileIsExist) {
             return Result.OK();
         }
         String filename = uploadFile.getOriginalFilename();
@@ -197,17 +197,27 @@ public class DataServiceImpl implements DataService {
         fileMap.setTimestamp(System.currentTimeMillis());
         String pathTemp = hdfsServer + UUID.randomUUID() + suffix;
         fileMap.setDstDeltaTablePath(fileUploadVO.getDstDeltaTablePath());
-        if (ModelEnum.OVERWRITE.equals(fileUploadVO.getMode())) {
-            this.deleteOldData(fileUploadVO.getDstDeltaTablePath());
-        }
-        this.generateDataMap(fileMap);
         uploadTempFile(uploadFile.getInputStream(), pathTemp, uploadFile.getOriginalFilename());
         fileUploadVO.setSrcFilePath(pathTemp);
-        HttpUtils.httpPost(url + "/upload", fileUploadVO);
+        try{
+            HttpUtils.httpPost(url + "/upload", fileUploadVO);
+        } catch (Exception e) {
+            String mode = fileUploadVO.getMode();
+            if (ModelEnum.ERROR.getMode().equals(mode) || ModelEnum.ERROR_IF_EXISTS.getMode().equals(mode)) {
+                throw e;
+            } else if (ModelEnum.IGNORE.getMode().equals(mode)) {
+                return Result.OK();
+            }
+        }
+        this.generateDataMap(fileMap);
+        deleteTempFile(pathTemp);
         String table = "";
         if (ModelEnum.Append.getMode().equals(fileUploadVO.getMode()) && tableIsExist(fileUploadVO.getDstDeltaTablePath())) {
 
         } else {
+            if (ModelEnum.OVERWRITE.equals(fileUploadVO.getMode())) {
+                this.deleteOldTable(fileUploadVO.getDstDeltaTablePath());
+            }
             table = generateTableMetadata(fileUploadVO.getDstDeltaTablePath(), fileMap.getSuffix());
         }
 
@@ -321,6 +331,7 @@ public class DataServiceImpl implements DataService {
         Long fileLength = Long.valueOf(inputStream.available() * 8);
         Configuration config = new Configuration();
         FileSystem fs = FileSystem.get(URI.create(hdfsPath), config);
+
         long fileSize = fileLength > 65536 ? fileLength / 65536 : 1;
         FSDataOutputStream out = fs.create(new Path(hdfsPath), new Progressable() {
             long fileCount = 0;
@@ -331,6 +342,12 @@ public class DataServiceImpl implements DataService {
             }
         });
         IOUtils.copyBytes(inputStream, out, 2048, true);
+    }
+
+    private void deleteTempFile(String hdfsPath) throws IOException {
+        Configuration config = new Configuration();
+        FileSystem fs = FileSystem.get(URI.create(hdfsPath), config);
+        fs.delete(new Path(hdfsPath), true);
     }
 
     private boolean checkFileIsExist(String md5Hex, String dstDeltaTablePath) {
@@ -346,10 +363,10 @@ public class DataServiceImpl implements DataService {
         return mongoTemplate.findOne(query, Table.class);
     }
 
-    private void deleteOldData(String dstDeltaTablePath) {
+    private void deleteOldTable(String dstDeltaTablePath) {
         Query query = new Query();
         query.addCriteria(Criteria.where("dstDeltaTablePath").is(dstDeltaTablePath));
-        mongoTemplate.remove(query, FileInfo.class);
+        mongoTemplate.remove(query, Table.class);
     }
 
     private boolean tableIsExist(String dstDeltaTablePath) {
