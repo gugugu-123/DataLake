@@ -1,7 +1,7 @@
 spring:
   data:
     mongodb:
-      host: 114.132.185.184
+      host: ip
       port: 27017
       database: dataMap
   jackson:
