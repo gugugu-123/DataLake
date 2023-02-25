@@ -22,8 +22,4 @@ public class FileInfo {
     private String fileType;
 
     private Long timestamp;
-
-    private Date createTime;
-
-    private Date updateTime;
 }

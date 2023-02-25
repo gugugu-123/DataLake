@@ -17,9 +17,11 @@ public class FileUploadVO {
     private String mode;
 
     @ApiModelProperty(value = "最终路径", required = true)
-    @NotBlank(message = "请选择最终存储路径")
     private String dstDeltaTablePath;
 
     @ApiModelProperty(value = "临时路径", required = false)
     private String srcFilePath;
+
+    @ApiModelProperty(value = "表", required = false)
+    private String table;
 }

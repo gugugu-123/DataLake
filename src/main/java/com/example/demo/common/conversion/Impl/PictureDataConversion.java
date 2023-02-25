@@ -13,7 +13,6 @@ public class PictureDataConversion implements DataFormatConversion {
 
     @Override
     public String format(String json) {
-        //String formatData = json.replace("\\", "").replace("\"", "");
         List<JSONObject> formatResultTable = new ArrayList<>();
         JSONArray jsonArray = JSONUtil.parseArray(json);
         for (Object valueJson : jsonArray) {

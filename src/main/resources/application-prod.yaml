@@ -1,10 +1,11 @@
 spring:
   data:
     mongodb:
-      host: 127.0.0.1
+      host: 114.132.185.184
       port: 27017
       database: dataMap
-
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
 server:
   port: 8400
 
@@ -12,10 +13,11 @@ dataLake:
   sparkServer: localhost:18403
   hdfsServer: hdfs://localhost:9000/opt/dataLake/temp/
   table: delta
-
+  tablePath: /opt/dataLake/data/
 knife4j:
   # 开启增强配置
   enable: true
   setting:
     # 是否开启动态参数调试功能,默认关闭
     enableDynamicParameter: true
+

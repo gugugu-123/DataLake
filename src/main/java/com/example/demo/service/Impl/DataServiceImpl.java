@@ -54,6 +54,9 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.URI;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -75,6 +78,9 @@ public class DataServiceImpl implements DataService {
 
     @Value("${dataLake.hdfsServer}")
     private String hdfsServer;
+
+    @Value("${dataLake.tablePath}")
+    private String tablePath;
 
     @Autowired
     private Executor executor;
@@ -98,19 +104,19 @@ public class DataServiceImpl implements DataService {
             originSql.append(id);
         }
 
-//        LocalDateTime startTime = detailInformationVO.getStartTim();
-//        LocalDateTime endTime = detailInformationVO.getEndTime();
-//
-//        if (startTime != null && columns.contains("timestamp")) {
-//            long start = startTime.toInstant(ZoneOffset.of("+8")).toEpochMilli();
-//            originSql.append(" and timestamp >= ");
-//            originSql.append(start);
-//        }
-//        if (endTime != null && columns.contains("timestamp")) {
-//            long end = endTime.toInstant(ZoneOffset.of("+8")).toEpochMilli();
-//            originSql.append(" and timestamp <= ");
-//            originSql.append(end);
-//        }
+        String startTime = detailInformationVO.getStartTime();
+        String endTime = detailInformationVO.getEndTime();
+
+        if (startTime != null && columns.contains("timestamp")) {
+            long start = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(startTime).getTime();
+            originSql.append(" and timestamp >= ");
+            originSql.append(start);
+        }
+        if (endTime != null && columns.contains("timestamp")) {
+            long end = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(endTime).getTime();
+            originSql.append(" and timestamp <= ");
+            originSql.append(end);
+        }
         String symbols = detailInformationVO.getSymbols();
         if (StrUtil.isNotBlank(symbols) && columns.contains("symbols")) {
             addLikeCondition("symbols", symbols, originSql);
@@ -122,6 +128,10 @@ public class DataServiceImpl implements DataService {
         String companyName = detailInformationVO.getCompanyName();
         if (StrUtil.isNotBlank(companyName) && columns.contains("company_name")) {
             addLikeCondition("company_name", companyName, originSql);
+        }
+        String source = detailInformationVO.getSource();
+        if (StrUtil.isNotBlank(source) && columns.contains("source")) {
+            addLikeCondition("source", source, originSql);
         }
         return originSql.toString();
     }
@@ -182,12 +192,17 @@ public class DataServiceImpl implements DataService {
     @Transactional(rollbackFor = Exception.class)
     public Result<String> upload(MultipartFile uploadFile, FileUploadVO fileUploadVO) throws SparkServerException, IOException {
         String md5Hex = DigestUtil.md5Hex(uploadFile.getInputStream());
-        boolean fileIsExist = this.checkFileIsExist(md5Hex, fileUploadVO.getDstDeltaTablePath());
-
-        if (fileIsExist) {
-            return Result.OK();
-        }
         String filename = uploadFile.getOriginalFilename();
+        String dstDeltaTablePath = fileUploadVO.getTable();;
+        if (!StrUtil.isNotBlank(dstDeltaTablePath)) {
+            dstDeltaTablePath = this.tablePath + filename;
+            fileUploadVO.setDstDeltaTablePath(dstDeltaTablePath);
+        }
+        FileInfo fileInfo = this.checkFileIsExist(md5Hex, dstDeltaTablePath);
+        String table = this.table + ".`" + dstDeltaTablePath + "`";
+        if (fileInfo != null && !ModelEnum.Append.getMode().equals(fileUploadVO.getMode())) {
+            return Result.OK(table);
+        }
         String suffix = filename.substring(filename.indexOf("."));
         FileInfo fileMap = new FileInfo();
         fileMap.setFileName(filename);
@@ -196,31 +211,29 @@ public class DataServiceImpl implements DataService {
         fileMap.setFileType(suffix.substring(1));
         fileMap.setTimestamp(System.currentTimeMillis());
         String pathTemp = hdfsServer + UUID.randomUUID() + suffix;
-        fileMap.setDstDeltaTablePath(fileUploadVO.getDstDeltaTablePath());
+        fileMap.setDstDeltaTablePath(dstDeltaTablePath);
         uploadTempFile(uploadFile.getInputStream(), pathTemp, uploadFile.getOriginalFilename());
         fileUploadVO.setSrcFilePath(pathTemp);
         try{
             HttpUtils.httpPost(url + "/upload", fileUploadVO);
         } catch (Exception e) {
             String mode = fileUploadVO.getMode();
-            if (ModelEnum.ERROR.getMode().equals(mode) || ModelEnum.ERROR_IF_EXISTS.getMode().equals(mode)) {
-                throw e;
-            } else if (ModelEnum.IGNORE.getMode().equals(mode)) {
+            if (ModelEnum.IGNORE.getMode().equals(mode)) {
                 return Result.OK();
+            } else {
+                throw e;
             }
         }
         this.generateDataMap(fileMap);
         deleteTempFile(pathTemp);
-        String table = "";
-        if (ModelEnum.Append.getMode().equals(fileUploadVO.getMode()) && tableIsExist(fileUploadVO.getDstDeltaTablePath())) {
+        if (ModelEnum.Append.getMode().equals(fileUploadVO.getMode()) && tableIsExist(dstDeltaTablePath)) {
 
         } else {
             if (ModelEnum.OVERWRITE.equals(fileUploadVO.getMode())) {
-                this.deleteOldTable(fileUploadVO.getDstDeltaTablePath());
+                this.deleteOldTable(dstDeltaTablePath);
             }
-            table = generateTableMetadata(fileUploadVO.getDstDeltaTablePath(), fileMap.getSuffix());
+            table = generateTableMetadata(dstDeltaTablePath, fileMap.getSuffix());
         }
-
         return Result.OK(table);
     }
 
@@ -321,10 +334,13 @@ public class DataServiceImpl implements DataService {
 
     private void addLikeCondition(String column, String value, StringBuffer originSql) {
         originSql.append(" ");
+        originSql.append("and");
+        originSql.append(" ");
         originSql.append(column);
-        originSql.append(" like %");
+        originSql.append(" like '%");
         originSql.append(value);
         originSql.append("%");
+        originSql.append("'");
     }
 
     private void uploadTempFile(InputStream inputStream, String hdfsPath, String fileName) throws IOException {
@@ -350,11 +366,11 @@ public class DataServiceImpl implements DataService {
         fs.delete(new Path(hdfsPath), true);
     }
 
-    private boolean checkFileIsExist(String md5Hex, String dstDeltaTablePath) {
+    private FileInfo checkFileIsExist(String md5Hex, String dstDeltaTablePath) {
         Query query = new Query();
         query.addCriteria(Criteria.where("md5Hex").is(md5Hex).and("dstDeltaTablePath").is(dstDeltaTablePath));
         FileInfo fileMap = mongoTemplate.findOne(query, FileInfo.class);
-        return fileMap != null;
+        return fileMap;
     }
 
     private Table getTableByName(String name) {
@@ -371,7 +387,7 @@ public class DataServiceImpl implements DataService {
 
     private boolean tableIsExist(String dstDeltaTablePath) {
         Query query = new Query();
-        query.addCriteria(Criteria.where("dstDeltaTablePath").is(dstDeltaTablePath));
+        query.addCriteria(Criteria.where("path").is(dstDeltaTablePath));
         Table table = mongoTemplate.findOne(query, Table.class);
         return table != null;
     }
@@ -402,9 +418,14 @@ public class DataServiceImpl implements DataService {
         int total = jsonArray.size();
         int fromIndex = (page - 1) * pageSize;
         int toIndex = (fromIndex + pageSize) > jsonArray.size() ? jsonArray.size() : (fromIndex + pageSize);
-        List<Object> pageData = jsonArray.subList(fromIndex, toIndex);
-        sqlResultModel.setResultTable(pageData.toString());
         sqlResultModel.setTotal(total);
+        if (fromIndex > jsonArray.size()) {
+            sqlResultModel.setResultTable("[]");
+        } else {
+            List<Object> pageData = jsonArray.subList(fromIndex, toIndex);
+            sqlResultModel.setResultTable(pageData.toString());
+        }
+
         return sqlResultModel;
     }
 

@@ -1,15 +1,16 @@
 package com.example.demo.config;
 
-import org.springframework.beans.factory.annotation.Configurable;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.data.mongodb.MongoDbFactory;
 import org.springframework.data.mongodb.MongoTransactionManager;
 
-@Configurable
+@Configuration
 public class MongodbConfig {
 
-    @Bean
-    public MongoTransactionManager initMongoTransactionManager(MongoDbFactory factory) {
+    @Bean(name = "mongoTransactionManager")
+    public MongoTransactionManager initMongoTransactionManager(MongoDatabaseFactory factory) {
         return new MongoTransactionManager(factory);
     }
 
