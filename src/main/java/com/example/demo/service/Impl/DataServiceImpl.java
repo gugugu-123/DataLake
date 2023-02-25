@@ -200,7 +200,7 @@ public class DataServiceImpl implements DataService {
         }
         FileInfo fileInfo = this.checkFileIsExist(md5Hex, dstDeltaTablePath);
         String table = this.table + ".`" + dstDeltaTablePath + "`";
-        if (fileInfo != null && !ModelEnum.Append.getMode().equals(fileUploadVO.getMode())) {
+        if (fileInfo != null && ModelEnum.Append.getMode().equals(fileUploadVO.getMode())) {
             return Result.OK(table);
         }
         String suffix = filename.substring(filename.indexOf("."));
@@ -281,7 +281,7 @@ public class DataServiceImpl implements DataService {
             }
         }
         response.setHeader("Access-Control-Expose-Headers", "fileName");
-        response.setHeader("fileName", UUID.randomUUID().toString().substring(1, 7) + table.getFileType());
+        response.setHeader("fileName", table.getPath().substring(table.getPath().lastIndexOf("/") + 1));
         ServletOutputStream outputStream = response.getOutputStream();
         byte[] bytes = new byte[1024];
         int length = - 1;

@@ -55,9 +55,8 @@ class DemoApplicationTests {
 
     @Test
     public void test() throws FileNotFoundException {
-//        SqlInformationVO sqlInformationVO = new SqlInformationVO();
-//        sqlInformationVO.setSql("select E_ID,E_Name FROM employees_china union select E_ID,E_Name FROM employees_usa");
-//        dataService.getSqlResult(sqlInformationVO);
+
+        System.out.println("./..".substring("./..".lastIndexOf("/")));
 
     }
 
