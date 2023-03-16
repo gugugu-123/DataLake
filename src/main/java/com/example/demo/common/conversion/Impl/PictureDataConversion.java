@@ -13,13 +13,12 @@ public class PictureDataConversion implements DataFormatConversion {
 
     @Override
     public String format(String json) {
-        List<JSONObject> formatResultTable = new ArrayList<>();
         JSONArray jsonArray = JSONUtil.parseArray(json);
-        for (Object valueJson : jsonArray) {
-            JSONObject value = JSONUtil.parseObj(valueJson);
-            formatResultTable.add((JSONUtil.parseObj(value.get("value"))));
-        }
-        return JSONUtil.toJsonStr(formatResultTable);
+//        for (Object valueJson : jsonArray) {
+//            JSONObject value = JSONUtil.parseObj(valueJson);
+//            formatResultTable.add((JSONUtil.parseObj(value.get("value"))));
+//        }
+        return JSONUtil.toJsonStr(jsonArray);
     }
 
     @Override

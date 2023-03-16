@@ -2,6 +2,7 @@ package com.example.demo;
 
 
 import com.example.demo.common.constant.RegularExpressionConstant;
+import com.example.demo.entity.Table;
 import com.example.demo.exception.SparkServerException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
@@ -26,6 +27,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,8 +59,11 @@ class DemoApplicationTests {
     @Test
     public void test() throws FileNotFoundException {
 
-        System.out.println("./..".substring("./..".lastIndexOf("/")));
-
+        Query query = new Query();
+        Criteria criteria = new Criteria().orOperator(Criteria.where("columns").is(new ArrayList<>()), Criteria.where("name").is("delta.`111D:/dataLake/1.png`"));
+        //query.addCriteria(Criteria.where("columns").is(new ArrayList<>()));
+        Table table = mongoTemplate.findOne(Query.query(criteria), Table.class);
+        System.out.println(123);
     }
 
     @Test

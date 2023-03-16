@@ -14,13 +14,12 @@ public class JsonDataConversion implements DataFormatConversion {
     @Override
     public String format(String json) {
         String formatData = json.replace("\\", "").replace("\"", "");
-        List<JSONObject> formatResultTable = new ArrayList<>();
         JSONArray jsonArray = JSONUtil.parseArray(formatData);
-        for (Object valueJson : jsonArray) {
-            JSONObject value = JSONUtil.parseObj(valueJson);
-            formatResultTable.add((JSONUtil.parseObj(value.get("value"))));
-        }
-        return JSONUtil.toJsonStr(formatResultTable);
+//        for (Object valueJson : jsonArray) {
+//            JSONObject value = JSONUtil.parseObj(valueJson);
+//            formatResultTable.add((JSONUtil.parseObj(value.get("value"))));
+//        }
+        return JSONUtil.toJsonStr(jsonArray);
     }
 
     @Override

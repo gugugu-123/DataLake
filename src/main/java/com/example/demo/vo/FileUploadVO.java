@@ -16,7 +16,7 @@ public class FileUploadVO {
     @Model(message = "mode异常", target = ModelEnum.class)
     private String mode;
 
-    @ApiModelProperty(value = "最终路径", required = true)
+    @ApiModelProperty(value = "最终路径", required = false)
     private String dstDeltaTablePath;
 
     @ApiModelProperty(value = "临时路径", required = false)
@@ -24,4 +24,7 @@ public class FileUploadVO {
 
     @ApiModelProperty(value = "表", required = false)
     private String table;
+
+    @ApiModelProperty(value = "表", required = false)
+    private FileUploadOptionVO options;
 }

@@ -3,6 +3,8 @@ package com.example.demo.controller;
 import com.example.demo.exception.SqlException;
 import com.example.demo.exception.SparkServerException;
 import com.example.demo.exception.TableNotExistException;
+import com.example.demo.model.DoScalaResultModel;
+import com.example.demo.vo.ScalaVO;
 import com.example.demo.model.SqlModel;
 import com.example.demo.model.SqlResultModel;
 import com.example.demo.service.DataService;
@@ -12,29 +14,14 @@ import com.example.demo.vo.Result;
 import com.example.demo.vo.SqlInformationVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IOUtils;
-import org.apache.hadoop.util.Progressable;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
-import javax.validation.Valid;
 import java.io.*;
-import java.net.URI;
-import java.net.URLEncoder;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 
 @Api(tags = "数据管理")
@@ -81,6 +68,12 @@ public class DataController {
     @GetMapping("getTables")
     public Result<List<String>> getTables() {
         return dataService.getTables();
+    }
+
+    @ApiOperation("执行Scala代码")
+    @PostMapping("doScala")
+    public Result<DoScalaResultModel> doScala(@RequestBody ScalaVO scalaModel) throws SparkServerException {
+        return dataService.doScala(scalaModel);
     }
 
 }

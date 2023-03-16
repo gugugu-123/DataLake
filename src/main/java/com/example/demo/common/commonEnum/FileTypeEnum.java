@@ -5,7 +5,7 @@ public enum FileTypeEnum {
     JSON(".json"),
     CSV(".csv"),
     JPG(".jpg"),
-    PNG(".PNG");
+    PNG(".png");
     String type;
 
     FileTypeEnum(String type) {

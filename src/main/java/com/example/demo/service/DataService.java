@@ -4,11 +4,9 @@ import com.example.demo.entity.FileInfo;
 import com.example.demo.exception.SqlException;
 import com.example.demo.exception.SparkServerException;
 import com.example.demo.exception.TableNotExistException;
+import com.example.demo.model.DoScalaResultModel;
 import com.example.demo.model.SqlResultModel;
-import com.example.demo.vo.DetailInformationVO;
-import com.example.demo.vo.FileUploadVO;
-import com.example.demo.vo.Result;
-import com.example.demo.vo.SqlInformationVO;
+import com.example.demo.vo.*;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,4 +30,6 @@ public interface DataService {
     Result<List<String>> getTables();
 
     void download(String sql, HttpServletResponse response, DetailInformationVO detailInformationVO) throws SparkServerException, IOException, TableNotExistException, ParseException;
+
+    Result<DoScalaResultModel> doScala(ScalaVO scalaVO) throws SparkServerException;
 }

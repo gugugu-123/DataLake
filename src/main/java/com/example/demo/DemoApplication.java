@@ -1,16 +1,20 @@
 package com.example.demo;
 
+import cn.hutool.core.io.unit.DataSizeUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.web.servlet.MultipartConfigFactory;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 import org.springframework.data.mongodb.MongoTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.util.unit.DataSize;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import javax.servlet.MultipartConfigElement;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
@@ -49,4 +53,16 @@ public class DemoApplication {
         };
     }
 
+    @Bean
+    public MultipartConfigElement multipartConfigElement() {
+
+        MultipartConfigFactory factory = new MultipartConfigFactory();
+        //文件最大
+        factory.setMaxFileSize(DataSize.ofBytes(1024 * 100000)); //KB,MB
+        //设置总上传数据总大小
+        factory.setMaxRequestSize(DataSize.ofBytes(1024 * 100000));
+        return factory.createMultipartConfig();
+    }
 }
+
+

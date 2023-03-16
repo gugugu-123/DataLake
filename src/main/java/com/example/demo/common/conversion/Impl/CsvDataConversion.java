@@ -15,20 +15,19 @@ public class CsvDataConversion implements DataFormatConversion {
     public String format(String json) {
 
         String formatData = json.replace("\\", "").replace("\"", "");
-        List<JSONObject> formatResultTable = new ArrayList<>();
         JSONArray jsonArray = JSONUtil.parseArray(formatData);
-        JSONObject valueHead = JSONUtil.parseObj(JSONUtil.parseObj(jsonArray.get(0)).get("value"));
-        for (int i = 1; i < jsonArray.size(); i++) {
-            Object valueJson = jsonArray.get(i);
-            JSONObject valueObject = JSONUtil.parseObj(valueJson);
-            JSONObject value = JSONUtil.parseObj(valueObject.get("value"));
-            JSONObject jsonObject = new JSONObject();
-            for (Map.Entry<String, Object> headEntity : valueHead) {
-                jsonObject.put(headEntity.getValue().toString(), value.get(headEntity.getKey()));
-            }
-            formatResultTable.add(jsonObject);
-        }
-        return JSONUtil.toJsonStr(formatResultTable);
+        //JSONObject valueHead = JSONUtil.parseObj(JSONUtil.parseObj(jsonArray.get(0)));
+//        for (int i = 1; i < jsonArray.size(); i++) {
+//            Object valueJson = jsonArray.get(i);
+//            JSONObject valueObject = JSONUtil.parseObj(valueJson);
+//            JSONObject value = JSONUtil.parseObj(valueObject.get("value"));
+//            JSONObject jsonObject = new JSONObject();
+//            for (Map.Entry<String, Object> headEntity : valueHead) {
+//                jsonObject.put(headEntity.getValue().toString(), value.get(headEntity.getKey()));
+//            }
+//            formatResultTable.add(jsonObject);
+//        }
+        return jsonArray.toString();
 
     }
 

@@ -3,6 +3,7 @@ package com.example.demo.service.Impl;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.DigestUtil;
 import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.example.demo.common.commonEnum.FileTypeEnum;
 import com.example.demo.common.commonEnum.SqlTypeEnum;
@@ -22,16 +23,11 @@ import com.example.demo.entity.Table;
 import com.example.demo.exception.SparkServerException;
 import com.example.demo.exception.SqlException;
 import com.example.demo.exception.TableNotExistException;
+import com.example.demo.model.*;
 import com.example.demo.model.FileDownloadVO;
-import com.example.demo.model.SqlModel;
-import com.example.demo.model.SqlResultModel;
-import com.example.demo.model.TableModel;
 import com.example.demo.service.DataService;
 import com.example.demo.util.HttpUtils;
-import com.example.demo.vo.DetailInformationVO;
-import com.example.demo.vo.FileUploadVO;
-import com.example.demo.vo.Result;
-import com.example.demo.vo.SqlInformationVO;
+import com.example.demo.vo.*;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.conf.Configuration;
@@ -55,8 +51,6 @@ import java.io.*;
 import java.net.URI;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -203,7 +197,7 @@ public class DataServiceImpl implements DataService {
         if (fileInfo != null && ModelEnum.Append.getMode().equals(fileUploadVO.getMode())) {
             return Result.OK(table);
         }
-        String suffix = filename.substring(filename.indexOf("."));
+        String suffix = filename.substring(filename.indexOf(".")).toLowerCase();
         FileInfo fileMap = new FileInfo();
         fileMap.setFileName(filename);
         fileMap.setMd5Hex(md5Hex);
@@ -214,8 +208,9 @@ public class DataServiceImpl implements DataService {
         fileMap.setDstDeltaTablePath(dstDeltaTablePath);
         uploadTempFile(uploadFile.getInputStream(), pathTemp, uploadFile.getOriginalFilename());
         fileUploadVO.setSrcFilePath(pathTemp);
+        String responseBody = "";
         try{
-            HttpUtils.httpPost(url + "/upload", fileUploadVO);
+            responseBody = HttpUtils.httpPost(url + "/upload", fileUploadVO);
         } catch (Exception e) {
             String mode = fileUploadVO.getMode();
             if (ModelEnum.IGNORE.getMode().equals(mode)) {
@@ -229,10 +224,8 @@ public class DataServiceImpl implements DataService {
         if (ModelEnum.Append.getMode().equals(fileUploadVO.getMode()) && tableIsExist(dstDeltaTablePath)) {
 
         } else {
-            if (ModelEnum.OVERWRITE.equals(fileUploadVO.getMode())) {
-                this.deleteOldTable(dstDeltaTablePath);
-            }
-            table = generateTableMetadata(dstDeltaTablePath, fileMap.getSuffix());
+            this.deleteOldTable(dstDeltaTablePath);
+            table = generateTableMetadata(dstDeltaTablePath, fileMap.getSuffix(), responseBody);
         }
         return Result.OK(table);
     }
@@ -292,6 +285,21 @@ public class DataServiceImpl implements DataService {
         } finally {
             outputStream.flush();
         }
+    }
+
+    @Override
+    public Result<DoScalaResultModel> doScala(ScalaVO scalaVO) throws SparkServerException {
+        String result = HttpUtils.httpPost(url + "/spark/script", scalaVO);
+        JSONObject jsonObject = JSONUtil.parseObj(result);
+        JSONObject resultJsonObject = (JSONObject) jsonObject.get("result");
+        String schemaString = (String) resultJsonObject.get("schemaString");
+        schemaString = schemaString.replaceAll("\\r", "");
+        schemaString = schemaString.replaceAll("\\n", "");
+        JSONArray rows = (JSONArray) resultJsonObject.get("rows");
+        DoScalaResultModel model = new DoScalaResultModel();
+        model.setSchemaString(schemaString);
+        model.setRows(rows);
+        return Result.OK(model);
     }
 
     private List<String> checkTableExist(List<String> tableList) {
@@ -387,25 +395,25 @@ public class DataServiceImpl implements DataService {
 
     private boolean tableIsExist(String dstDeltaTablePath) {
         Query query = new Query();
-        query.addCriteria(Criteria.where("path").is(dstDeltaTablePath));
+        query.addCriteria(Criteria.where("path").is(dstDeltaTablePath).and("columns").ne(new ArrayList<>()));
         Table table = mongoTemplate.findOne(query, Table.class);
         return table != null;
     }
 
-    private String generateTableMetadata(String path, String suffix) throws SparkServerException {
+    private String generateTableMetadata(String path, String suffix, String responseBody) throws SparkServerException {
         Table tableMetadata = new Table();
         tableMetadata.setPath(path);
         tableMetadata.setName(this.table + ".`" + path + "`");
         tableMetadata.setFileType(suffix);
 
-        SqlModel sqlModel = new SqlModel();
-        sqlModel.setSqlQueries("select * from " + tableMetadata.getName() + "limit 1");
-        String result = HttpUtils.httpPost(url + "/spark/sql", sqlModel);
-        DataFormatConversion conversion = getDataConversion(suffix);
-
-        List<SqlResultModel> sqlResultModels = JSONUtil.toList(result, SqlResultModel.class);
-
-        List<String> columns = conversion.getColumn(sqlResultModels.get(0).getResultTable());
+        String  schemaJson = (String) JSONUtil.parseObj(responseBody).get("schemaJson");
+        JSONArray fieldsArray= (JSONArray) JSONUtil.parseObj(schemaJson).get("fields");
+        List<String> columns = new ArrayList<>();
+        for (Object o : fieldsArray) {
+            JSONObject jsonObject = (JSONObject) o;
+            String fieldName = (String) jsonObject.get("name");
+            columns.add(fieldName);
+        }
         tableMetadata.setColumns(columns);
         mongoTemplate.save(tableMetadata);
         return tableMetadata.getName();
